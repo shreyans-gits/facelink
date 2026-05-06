@@ -43,6 +43,9 @@ def main():
     cv2.namedWindow("FaceLink", cv2.WINDOW_NORMAL)
     cv2.setWindowProperty("FaceLink", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
+    frame_count = 0
+    last_results = []
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -51,17 +54,26 @@ def main():
 
         frame = cv2.flip(frame, 1)
 
-        locations = detector.detect_faces(frame)
-        for location in locations:
-            embeddings = embedder.get_embedding(frame,[location])
-            if embeddings is None:
-                continue
-            name = matcher.find_match(embeddings, db)
+        if frame_count % 5 == 0:
+            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+            last_results = []
+            locations = detector.detect_faces(small_frame)
+
+            for location in locations:
+                embeddings = embedder.get_embedding(small_frame,[location])
+                if embeddings is None:
+                    continue
+                name = matcher.find_match(embeddings, db)
+                top, right, bottom, left = location
+                last_results.append(((top*4, right*4, bottom*4, left*4), name))
+        
+        for location,name in last_results:
             top, right, bottom, left = location
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
             cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
         cv2.imshow("FaceLink", frame)
+        frame_count += 1
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
