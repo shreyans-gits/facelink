@@ -32,6 +32,9 @@ class Enrollment:
             return False
         embeddings = self.embedder.get_embedding(image, locations)
         
-        db[name] = embeddings
+        if name not in db:
+            db[name] = []
+        db[name].append(embeddings)
+
         print(f"Successfully enrolled {name}!")
         return True
