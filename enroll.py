@@ -18,16 +18,26 @@ from enrollment import Enrollment
 def main():
     enroller = Enrollment()
     db = enroller.load_enrolled()
+    
     name = "Shreyans"
-    photo_path = "photos/shreyans.jpg"
-    print (f"Enrolling {name}...")
+    photos = [
+        "photos/shreyans0.jpg",
+        "photos/shreyans1.jpg",
+        "photos/shreyans2.jpg",
+        "photos/shreyans3.jpg",
+        "photos/shreyans4.jpg"
+    ]
+    
+    print(f"Starting batch enrollment for {name}...")
+    for photo_path in photos:
+        print(f"Processing: {photo_path}")
+        success = enroller.enroll_person(name, photo_path, db)
+        
+        if not success:
+            print(f"Warning: Could not process {photo_path}")
 
-    success = enroller.enroll_person(name,photo_path,db)
-    if success:
-        enroller.save_enrolled(db)
-        print("Enrollment complete! You can now run main.py")
-    else:
-        print("Enrollment failed. Check the photo path or if a face is visible.")
+    enroller.save_enrolled(db)
+    print(f"Batch enrollment complete! {name} now has {len(db.get(name, []))} samples.")
 
 if __name__ == "__main__":
     main()
