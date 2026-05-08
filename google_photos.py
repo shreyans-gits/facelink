@@ -82,15 +82,33 @@ def download_selected_photos(creds, session_id, save_folder):
             os.makedirs(save_folder)
 
         for item in media_items:
-            download_url = f"{item['baseUrl']}=d"
-            file_name = f"{item['id']}.jpg"
-            file_path = os.path.join(save_folder, file_name)
+            media_file = item.get('mediaFile', {})
             
-            img_data = requests.get(download_url).content
-            with open(file_path, 'wb') as f:
-                f.write(img_data)
+            mime_type = media_file.get('mimeType', '')
+            base_url = media_file.get('baseUrl')
+            filename = item.get('filename', f"{item.get('id')}.jpg")
+
+            print(f"Checking: {filename} | MIME: {mime_type}")
+
+            if not base_url:
+                print(f"Skipping {filename} - No baseUrl found.")
+                continue
+
+            if 'image' not in mime_type:
+                print(f"Skipping {filename} - Not an image file (MIME: {mime_type}).")
+                continue
+
+            download_url = f"{base_url}=d"
+            file_path = os.path.join(save_folder, filename)
             
-            saved_paths.append(file_path)
-            print(f"Downloaded: {file_name}")
+            try:
+                img_response = requests.get(download_url, headers=headers)
+                if img_response.status_code == 200:
+                    with open(file_path, 'wb') as f:
+                        f.write(img_response.content)
+                    saved_paths.append(file_path)
+                    print(f"Successfully Downloaded: {filename}")
+            except Exception as e:
+                print(f"Error saving {filename}: {e}")
 
     return saved_paths
