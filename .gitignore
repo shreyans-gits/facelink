@@ -5,4 +5,4 @@ __pycache__/
 venv
 *.jpg
 *.pkl
-credential.json
+credentials.json
