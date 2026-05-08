@@ -6,3 +6,5 @@ venv
 *.jpg
 *.pkl
 credentials.json
+token.json
+temp_google_photos
