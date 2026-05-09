@@ -151,5 +151,5 @@ def run_clustering_enrollment(photo_folder):
     print("\nBatch enrollment complete! Your database is now updated.")
 
 if __name__ == "__main__":
-    takeout_path = "C:/Users/Shreyans Sahu/Downloads/Takeout/Google Photos"
+    takeout_path = "Takeout/Google Photos"
     run_clustering_enrollment(takeout_path)

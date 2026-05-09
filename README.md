@@ -7,7 +7,7 @@
 
 ## What it does
 
-facelink watches your webcam and greets whoever it sees — by name. You enroll people once (manually or straight from Google Photos), and the system remembers them using face embeddings and cosine similarity matching. No cloud, no training, everything runs locally.
+FaceLink watches your webcam and greets whoever it sees — by name. You enroll people once (manually, from Google Photos, or automatically from a photo dump using face clustering), and the system remembers them using face embeddings and cosine similarity matching. No cloud, no training, everything runs locally.
 
 ---
 
@@ -24,18 +24,19 @@ facelink watches your webcam and greets whoever it sees — by name. You enroll 
 
 ```
 facelink/
-├── config.py           # Constants — threshold, paths, embedding size
-├── detector.py         # Face detection on images and video frames
-├── embedder.py         # 128-dim embedding extraction via pretrained model
-├── enrollment.py       # Multi-sample enrollment + local pickle database
-├── matcher.py          # Cosine similarity matching with threshold
-├── main.py             # Real-time webcam recognition loop
-├── enroll.py           # Manual enrollment from local photos
-├── google_photos.py    # Google OAuth + Picker API + photo download
-├── google_enroll.py    # End-to-end Google Photos enrollment flow
+├── config.py              # Constants — threshold, paths, embedding size
+├── detector.py            # Face detection on images and video frames
+├── embedder.py            # 128-dim embedding extraction via pretrained model
+├── enrollment.py          # Multi-sample enrollment + local pickle database
+├── matcher.py             # Cosine similarity matching with threshold
+├── main.py                # Real-time webcam recognition loop
+├── enroll.py              # Manual enrollment from local photos
+├── cluster_enroll.py      # Automatic enrollment via DBSCAN face clustering
+├── google_photos.py       # Google OAuth + Picker API + photo download
+├── google_enroll.py       # End-to-end Google Photos enrollment flow
 ├── data/
 │   └── enrolled/
-└── photos/             # Drop manual enrollment photos here
+└── photos/                # Drop manual enrollment photos here
 ```
 
 ---
@@ -60,12 +61,12 @@ source venv/bin/activate     # macOS/Linux
 ### 3. Install dependencies
 
 ```bash
-pip install opencv-python face-recognition numpy google-auth-oauthlib google-auth-httplib2 google-api-python-client requests
+pip install opencv-python face-recognition numpy scikit-learn google-auth-oauthlib google-auth-httplib2 google-api-python-client requests
 ```
 
 ### 4. Python 3.13 compatibility fix
 
-`face_recognition` uses a legacy package discovery method that breaks on Python 3.13. `main.py`, `enroll.py`, and `google_enroll.py` each include a spoof block at the top that manually injects the model file paths. Update the `venv_site` path in each file to match your local environment:
+`face_recognition` uses a legacy package discovery method that breaks on Python 3.13. `main.py`, `enroll.py`, `google_enroll.py`, and `cluster_enroll.py` each include a spoof block at the top that manually injects the model file paths. Update the `venv_site` path in each file to match your local environment:
 
 ```python
 venv_site = r"path\to\your\venv\Lib\site-packages"
@@ -85,7 +86,7 @@ python enroll.py
 
 Multiple photos per person improve accuracy — use varied lighting and angles.
 
-### Option B — Google Photos (recommended)
+### Option B — Google Photos Picker
 
 **One-time setup:**
 
@@ -99,9 +100,26 @@ Multiple photos per person improve accuracy — use varied lighting and angles.
 python google_enroll.py
 ```
 
-This will open a browser, let you pick photos directly from your Google Photos library, download them locally, and enroll the person automatically. You'll be asked for the person's name after selection.
+This opens a browser, lets you pick photos directly from your Google Photos library, downloads them locally, and enrolls the person automatically. You'll be asked for the person's name after selection.
 
 > Note: Google Photos' People/face-tagging feature is not exposed via their API, so photo selection is manual through the Picker UI.
+
+### Option C — Cluster enrollment from a photo dump (recommended)
+
+The most powerful enrollment method. Point it at any folder of photos — a Google Takeout export, a camera roll dump, anything — and it automatically groups faces by identity using DBSCAN clustering. You label each cluster once, and everyone gets enrolled in one pass.
+
+```bash
+python cluster_enroll.py
+```
+
+Edit the `takeout_path` variable at the bottom of `cluster_enroll.py` to point at your photo folder before running.
+
+**How it works:**
+1. Scans every image in the folder and extracts face embeddings
+2. Runs DBSCAN (cosine metric, `eps=0.05`) to group similar faces into clusters
+3. Shows you a cropped face from each cluster and asks for the person's name
+4. Enrolls all faces in that cluster under that name
+5. Faces that don't cluster with anyone (strangers, blurry shots) are automatically ignored as noise
 
 ---
 
@@ -130,6 +148,11 @@ Adjust `SIMILARITY_THRESHOLD` in `config.py`:
 - **Higher (e.g. 0.7)** — stricter matching, fewer false positives, more Unknowns
 - **Lower (e.g. 0.5)** — more lenient, recognizes from farther or at worse angles
 
+Adjust `eps` in `cluster_enroll.py` if clustering results are off:
+
+- **Lower (e.g. 0.03)** — tighter clusters, splits one person into multiple groups if photos vary a lot
+- **Higher (e.g. 0.1)** — looser clusters, may merge different people if they look similar
+
 ---
 
 ## What's not included
@@ -147,6 +170,7 @@ All three are in `.gitignore`.
 - Face embeddings and vector representations of identity
 - Cosine similarity for comparing high-dimensional vectors
 - Transfer learning — using a pretrained model as a feature extractor
+- Unsupervised clustering with DBSCAN for automatic identity grouping
 - Real-time video processing with OpenCV
 - OAuth 2.0 authentication flow
 - Google Photos Picker API integration
