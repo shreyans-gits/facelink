@@ -50,7 +50,7 @@ def collect_embeddings(photo_folder):
             if faces:
                 for face_location in faces:
                     embedding = embedder.get_embedding(img_rgb, [face_location])
-                    results.append((embedding, photo_path))
+                    results.append((embedding, photo_path, face_location))
 
         except Exception as e:
             print(f"\nError processing {photo_path}: {e}")
@@ -62,8 +62,15 @@ def collect_embeddings(photo_folder):
 
 def cluster_faces(embedding_data):
     embeddings = np.array([item[0] for item in embedding_data])
+
+    distances = []
+    for i in range(len(embeddings)):
+        for j in range(i+1, len(embeddings)):
+            dist = 1 - np.dot(embeddings[i], embeddings[j]) / (np.linalg.norm(embeddings[i]) * np.linalg.norm(embeddings[j]))
+            distances.append(dist)
+
     print(f"Clustering {len(embeddings)} faces...")
-    clt = DBSCAN(eps=0.25, min_samples=2, metric='cosine')
+    clt = DBSCAN(eps = 0.05, min_samples=2, metric='cosine')
     labels = clt.fit_predict(embeddings)
     unique_labels = set(labels)
     num_clusters = len([l for l in unique_labels if l != -1])
@@ -71,20 +78,30 @@ def cluster_faces(embedding_data):
     print(f"Clustering complete!")
     print(f"-> Found {num_clusters} distinct clusters (people).")
     print(f"-> Identified {num_noise} noise points (outliers).")
+
+    from collections import Counter
+    label_counts = Counter(labels)
+    print("Label distribution:", dict(label_counts))
+
     return labels, embedding_data
 
-def show_representative(photo_path):
+def show_representative(photo_path, face_location):
     img = cv2.imread(photo_path)
-    if img is None:
-        print(f"Could not read image: {photo_path}")
-        return
-    
-    width = 600
-    aspect_ratio = width / float(img.shape[1])
-    height = int(img.shape[0] * aspect_ratio)
-    resized_img = cv2.resize(img, (width, height))
+    if img is None: return
 
-    cv2.imshow("Who is this? (Press any key to continue)", resized_img)
+    top, right, bottom, left = face_location
+    
+    h, w, _ = img.shape
+    pad_h = int((bottom - top) * 0.2)
+    pad_w = int((right - left) * 0.2)
+    
+    y1, y2 = max(0, top - pad_h), min(h, bottom + pad_h)
+    x1, x2 = max(0, left - pad_w), min(w, right + pad_w)
+    
+    face_crop = img[y1:y2, x1:x2]
+
+    display_img = cv2.resize(face_crop, (400, 400))
+    cv2.imshow("Identify this face", display_img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -111,9 +128,12 @@ def run_clustering_enrollment(photo_folder):
         cluster_indices = [i for i, label in enumerate(labels) if label == cluster_id]
         cluster_items = [data[i] for i in cluster_indices]
 
-        representative_path = cluster_items[0][1]
-        print(f"\n--- Processing Cluster {cluster_id} ({len(cluster_items)} photos) ---")
-        show_representative(representative_path)
+        representative_item = cluster_items[0] # This is now (embedding, path, location)
+        rep_path = representative_item[1]
+        rep_location = representative_item[2]
+
+        print(f"\n--- Cluster {cluster_id}: {len(cluster_items)} faces ---")
+        show_representative(rep_path, rep_location)
         name = input(f"Enter the name for this person (or type 'skip' to ignore): ").strip()
 
         if name.lower() == 'skip':
@@ -124,12 +144,12 @@ def run_clustering_enrollment(photo_folder):
             db[name] = []
         
         print(f"Adding {len(cluster_items)} embeddings to '{name}'...")
-        for embedding, _ in cluster_items:
+        for embedding, _, __ in cluster_items:
             db[name].append(embedding)
 
     enroller.save_enrolled(db)
     print("\nBatch enrollment complete! Your database is now updated.")
 
 if __name__ == "__main__":
-    takeout_path = "Takeout/Google Photos"
+    takeout_path = "C:/Users/Shreyans Sahu/Downloads/Takeout/Google Photos"
     run_clustering_enrollment(takeout_path)
