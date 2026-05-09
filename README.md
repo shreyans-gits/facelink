@@ -7,7 +7,7 @@
 
 ## What it does
 
-familiar watches your webcam and greets whoever it sees — by name. You enroll people once (manually or straight from Google Photos), and the system remembers them using face embeddings and cosine similarity matching. No cloud, no training, everything runs locally.
+facelink watches your webcam and greets whoever it sees — by name. You enroll people once (manually or straight from Google Photos), and the system remembers them using face embeddings and cosine similarity matching. No cloud, no training, everything runs locally.
 
 ---
 
@@ -23,7 +23,7 @@ familiar watches your webcam and greets whoever it sees — by name. You enroll 
 ## Project structure
 
 ```
-familiar/
+facelink/
 ├── config.py           # Constants — threshold, paths, embedding size
 ├── detector.py         # Face detection on images and video frames
 ├── embedder.py         # 128-dim embedding extraction via pretrained model
@@ -45,8 +45,8 @@ familiar/
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/yourusername/familiar.git
-cd familiar
+git clone https://github.com/yourusername/facelink.git
+cd facelink
 ```
 
 ### 2. Create a virtual environment
